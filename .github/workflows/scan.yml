@@ -2,11 +2,12 @@ name: NSE Technical Signals Scanner
 
 on:
   schedule:
-    # Every 30 min, roughly 8:30am-3:35pm IST (03:00-10:05 UTC), Mon-Fri.
-    # The script itself double-checks market hours (9:15-15:30 IST) and
-    # exits early outside that window, so a little slack here is fine.
-    - cron: "0,30 3-9 * * 1-5"
-    - cron: "0,30 10 * * 1-5"
+    # Two fixed checks per day, Mon-Fri (IST -> UTC, IST = UTC+5:30):
+    # 10:30 AM IST (05:00 UTC) -- early heads-up / watchlist check.
+    # 3:15 PM IST (09:45 UTC) -- near-close check, most relevant for BTST
+    # since it reads a nearly-final daily candle (only 15 min of trading left).
+    - cron: "0 5 * * 1-5"
+    - cron: "45 9 * * 1-5"
   workflow_dispatch: {}
 
 permissions:
