@@ -3,6 +3,25 @@ import pandas as pd
 
 from . import config
 
+_OHLCV_FIELDS = {"Open", "High", "Low", "Close", "Adj Close", "Volume"}
+
+
+def _flatten_ohlcv_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    yfinance can return multi-level columns even for what's conceptually a
+    single ticker, and the level order (ticker-then-field vs field-then-
+    ticker) has varied across versions/call patterns. Detect which level
+    actually holds the OHLCV field names and flatten to just that level,
+    rather than assuming a fixed order.
+    """
+    if not isinstance(df.columns, pd.MultiIndex):
+        return df
+    level0_is_fields = any(v in _OHLCV_FIELDS for v in df.columns.get_level_values(0))
+    level = 0 if level0_is_fields else -1
+    df = df.copy()
+    df.columns = df.columns.get_level_values(level)
+    return df
+
 
 def chunked(seq, size):
     for i in range(0, len(seq), size):
@@ -35,7 +54,7 @@ def fetch_daily_bars(tickers: list) -> dict:
 
         if len(chunk) == 1:
             t = chunk[0]
-            df = data.dropna(how="all")
+            df = _flatten_ohlcv_columns(data.dropna(how="all"))
             if not df.empty:
                 out[t] = df
             continue
@@ -66,6 +85,8 @@ def fetch_nifty_return_pct(lookback_days: int) -> float:
     df = df.dropna(how="all")
     if len(df) <= lookback_days:
         raise RuntimeError("Not enough Nifty index history to compute relative strength.")
+
+    df = _flatten_ohlcv_columns(df)
     close = df["Close"]
     latest = close.iloc[-1]
     past = close.iloc[-lookback_days - 1]
